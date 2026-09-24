@@ -306,7 +306,7 @@ erDiagram
 
 ### Relationship Details
 
-- One user can have one or more roles through `user_roles`.
+- One user can have one roles through `user_roles`.
 - Users with `ROLE_DONOR` are donor users.
 - A donor user can be assigned to many collection centers.
 - A collection center can have many donor users.
