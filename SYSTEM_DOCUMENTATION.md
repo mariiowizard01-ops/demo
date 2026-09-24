@@ -27,15 +27,15 @@ flowchart TD
 
 ### Admin
 
-- View and manage all system users.
+- View,edit and manage all system users.
 - View donor profile and donation details from User Management.
-- Change user roles.
 - Activate or deactivate users.
 - Create, edit, and delete collection centers.
 - Create, edit, and delete processors.
 - Edit and delete waste items.
 - View reports and statistics.
-- Accept, reject, dispatch, and complete waste when authorized by the backend.
+  
+- cannot change user roles.
 - Cannot create donor profiles manually.
 - Cannot create new waste items from the waste UI.
 
@@ -50,6 +50,7 @@ flowchart TD
 - Dispatch one item at a time from the center View panel or dispatch a center batch.
 - Mark dispatched waste as processed through the processor detail workflow.
 - View reports and statistics.
+  
 - Cannot add, edit, or delete collection centers.
 - Cannot add or edit processors.
 
@@ -60,8 +61,7 @@ flowchart TD
 - Submit food waste.
 - View their donation history.
 - Edit only pending submissions.
-- Cannot edit accepted, rejected, dispatched, or processed items.
-- Cannot accept, reject, dispatch, or process waste.
+  
 
 ## 4. Waste Item State Model
 
