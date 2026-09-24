@@ -2,6 +2,7 @@ package com.fwn.foodwaste.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
@@ -54,6 +55,14 @@ public class GlobalExceptionHandler {
                         "error", "VALIDATION_ERROR",
                         "message", ex.getMessage()
                 ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, Object>> handleDataIntegrityViolation(
+            DataIntegrityViolationException ex) {
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(buildBody(409, "Delete Not Allowed",
+                        "This record is still being used elsewhere. Remove its assignments or related items first."));
     }
 
     // LOGIN FAILURE (wrong username or password)

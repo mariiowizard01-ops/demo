@@ -1,10 +1,9 @@
 package com.fwn.foodwaste.service;
 
-import com.fwn.foodwaste.entity.Role;
 import com.fwn.foodwaste.entity.User;
+import com.fwn.foodwaste.dto.Request.UserDetailsUpdateRequest;
 import com.fwn.foodwaste.dto.Response.UserResponse;
-import com.fwn.foodwaste.entity.enums.RoleName;
-import com.fwn.foodwaste.repository.RoleRepository;
+import com.fwn.foodwaste.exception.ValidationException;
 import com.fwn.foodwaste.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,7 +19,6 @@ import java.util.stream.Collectors;
 public class UserService {
 
     private final UserRepository userRepository;
-    private final RoleRepository roleRepository;
 
 
 
@@ -38,31 +36,27 @@ public class UserService {
 
 
 
-    /**
-     * Replaces all current roles on the user with the supplied set.
-     * Roles must be valid RoleName strings e.g. "ROLE_ADMIN".
-     */
-    public UserResponse assignRoles(Long id, Set<String> roleNames) {
-        User user = userRepository.findById(id)
-            .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
-
-        Set<Role> roles = roleNames.stream()
-                .map(name -> roleRepository
-                        .findByRole(RoleName.valueOf(name))
-                        .orElseThrow(() -> new IllegalArgumentException(
-                                "Role not found: " + name)))
-                .collect(Collectors.toSet());
-
-        user.setRoles(roles);
-        return toResponse(userRepository.save(user));
-    }
-
-
-
     public UserResponse setActiveStatus(Long id, boolean active) {
         User user = userRepository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
         user.setActive(active);
+        return toResponse(userRepository.save(user));
+    }
+
+    public UserResponse updateDetails(Long id, UserDetailsUpdateRequest request) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new IllegalArgumentException("User not found: " + id));
+
+        userRepository.findByEmail(request.getEmail())
+                .filter(existing -> !existing.getId().equals(id))
+                .ifPresent(existing -> {
+                    throw new ValidationException("Email '" + request.getEmail() + "' is already registered");
+                });
+
+        user.setEmail(request.getEmail());
+        user.setName(request.getName());
+        user.setAddress(request.getAddress());
+        user.setPhone(request.getPhone());
         return toResponse(userRepository.save(user));
     }
 

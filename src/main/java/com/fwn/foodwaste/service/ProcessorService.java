@@ -5,6 +5,7 @@ import com.fwn.foodwaste.dto.Response.ProcessorResponse;
 import com.fwn.foodwaste.entity.Processors;
 import com.fwn.foodwaste.exception.CapicityExceedException;
 import com.fwn.foodwaste.exception.ResourceNotFoundException;
+import com.fwn.foodwaste.exception.ValidationException;
 import com.fwn.foodwaste.repository.ProcessorRepository;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -46,8 +47,15 @@ public class ProcessorService {
     }
 
     public void delete(Long id) {
-        if (!processorRepo.existsById(id))
-            throw new ResourceNotFoundException("Processor not found: " + id);
+        Processors processor = processorRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Processor not found: " + id));
+
+        if (!processor.getCollectionCentres().isEmpty()) {
+            throw new ValidationException(
+                    "This processor cannot be deleted because it is assigned to collection centers. "
+                            + "Reassign or remove those centers first.");
+        }
+
         processorRepo.deleteById(id);
     }
 

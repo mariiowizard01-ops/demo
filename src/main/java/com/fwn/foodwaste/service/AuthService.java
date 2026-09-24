@@ -79,18 +79,25 @@ public class AuthService {
                     .collect(Collectors.toSet());
         }
 
+        boolean isOperator = roles.stream()
+                .anyMatch(role -> role.getRole() == RoleName.ROLE_OPERATOR);
+
         User user = User.builder()
                 .username(request.getUsername())
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
-                .active(true)
+                .active(!isOperator)
                 .roles(roles)
                 .build();
 
         userRepository.save(user);
         createDonorProfileIfNeeded(user, request);
 
-        // Auto-login after registration so caller gets a token immediately
+                if (!user.isActive()) {
+                        return buildAuthResponse(user, null);
+                }
+
+                // Auto-login active accounts after registration.
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         request.getUsername(),

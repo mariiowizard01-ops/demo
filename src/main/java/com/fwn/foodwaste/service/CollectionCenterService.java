@@ -58,9 +58,26 @@ public class CollectionCenterService {
     }
 
     public void delete(Long id) {
-        if (!centerRepo.existsById(id))
-            throw new ResourceNotFoundException(
-                    "Collection center not found: " + id);
+        CollectionCentres center = centerRepo.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Collection center not found: " + id));
+
+        if (center.getProcessor() != null) {
+            throw new ValidationException(
+                    "This collection center cannot be deleted because it is assigned to a processor. "
+                            + "Reassign or remove the processor first.");
+        }
+        if (!center.getDonors().isEmpty()) {
+            throw new ValidationException(
+                    "This collection center cannot be deleted because donors are assigned to it. "
+                            + "Remove the donor assignments first.");
+        }
+        if (!center.getFoodWasteItems().isEmpty()) {
+            throw new ValidationException(
+                    "This collection center cannot be deleted because it has donated food items. "
+                            + "Remove or reassign those items first.");
+        }
+
         centerRepo.deleteById(id);
     }
 

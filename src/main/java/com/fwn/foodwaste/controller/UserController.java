@@ -1,14 +1,16 @@
 package com.fwn.foodwaste.controller;
 
 import com.fwn.foodwaste.dto.Response.UserResponse;
+import com.fwn.foodwaste.dto.Request.UserDetailsUpdateRequest;
 import com.fwn.foodwaste.service.UserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import jakarta.validation.Valid;
+
 import java.util.List;
-import java.util.Set;
 
 @RestController
 @RequestMapping("/api/users")
@@ -31,18 +33,6 @@ public class UserController {
     }
 
     /**
-     * PUT /api/users/{id}/roles
-     * Body: ["ROLE_ADMIN", "ROLE_OPERATOR"]
-     * Replaces ALL current roles on the user with the supplied set.
-     */
-    @PutMapping("/{id}/roles")
-    public ResponseEntity<UserResponse> assignRoles(
-            @PathVariable Long id,
-            @RequestBody Set<String> roles) {
-        return ResponseEntity.ok(userService.assignRoles(id, roles));
-    }
-
-    /**
      * PATCH /api/users/{id}/status?active=false
      * Activates or deactivates a user account.
      * Deactivated users cannot log in (Spring Security checks enabled flag).
@@ -52,6 +42,13 @@ public class UserController {
             @PathVariable Long id,
             @RequestParam boolean active) {
         return ResponseEntity.ok(userService.setActiveStatus(id, active));
+    }
+
+    @PutMapping("/{id}/details")
+    public ResponseEntity<UserResponse> updateDetails(
+            @PathVariable Long id,
+            @Valid @RequestBody UserDetailsUpdateRequest request) {
+        return ResponseEntity.ok(userService.updateDetails(id, request));
     }
 
     // DELETE /api/users/{id}
