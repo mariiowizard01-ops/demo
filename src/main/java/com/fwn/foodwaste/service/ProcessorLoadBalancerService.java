@@ -34,7 +34,7 @@ public class ProcessorLoadBalancerService {
                 // only processors that can fit the batch
                 .filter(p -> p.getFreeCapacity() >= batchKg)
                 // pick the one with most free capacity
-                .max(Comparator.comparingDouble(Processors::getFreeCapacity))
+                .min(Comparator.comparingDouble(Processors::getUtilization))
                 .orElseThrow(() -> new CapacityExceededException(
                         "No processor can accept " + batchKg
                                 + " kg. All processors are at capacity."));

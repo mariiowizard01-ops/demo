@@ -10,6 +10,9 @@ import com.fwn.foodwaste.exception.ValidationException;
 import com.fwn.foodwaste.repository.CollectionCenterRepository;
 import com.fwn.foodwaste.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -26,6 +29,9 @@ public class FoodDonorService {
 
     @Transactional(readOnly = true)
     public List<FoodDonorResponse> findAll() {
+        if (isDonorCaller()) {
+            return List.of(toResponse(getAuthenticatedDonor()));
+        }
         return userRepo.findByRoles_Role(RoleName.ROLE_DONOR)
                 .stream().map(this::toResponse).collect(Collectors.toList());
     }
@@ -36,8 +42,16 @@ public class FoodDonorService {
     }
 
     public FoodDonorResponse create(FoodDonorRequest req) {
-        User donor = userRepo.findByEmail(req.getContactEmail())
-                .orElseThrow(() -> new ValidationException("Donor signup must create the user account first."));
+        User donor;
+        if (isDonorCaller()) {
+            donor = getAuthenticatedDonor();
+            if (!donor.getEmail().equalsIgnoreCase(req.getContactEmail())) {
+                throw new AccessDeniedException("You can only create a profile for your own account.");
+            }
+        } else {
+            donor = userRepo.findByEmail(req.getContactEmail())
+                    .orElseThrow(() -> new ValidationException("Donor signup must create the user account first."));
+        }
         if (donor.getRoles().stream().noneMatch(role -> role.getRole() == RoleName.ROLE_DONOR)) {
             throw new ValidationException("Only donor users can create a donor profile.");
         }
@@ -78,7 +92,30 @@ public class FoodDonorService {
         if (donor.getRoles().stream().noneMatch(role -> role.getRole() == RoleName.ROLE_DONOR)) {
             throw new ResourceNotFoundException("Donor not found: " + id);
         }
+        requireDonorOwnership(donor);
         return donor;
+    }
+
+    private boolean isDonorCaller() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        return authentication != null && authentication.getAuthorities().stream()
+                .anyMatch(authority -> RoleName.ROLE_DONOR.name().equals(authority.getAuthority()));
+    }
+
+    private User getAuthenticatedDonor() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null) {
+            throw new AccessDeniedException("Authentication is required.");
+        }
+        return userRepo.findByUsername(authentication.getName())
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Donor account not found: " + authentication.getName()));
+    }
+
+    private void requireDonorOwnership(User donor) {
+        if (isDonorCaller() && !getAuthenticatedDonor().getId().equals(donor.getId())) {
+            throw new AccessDeniedException("You can only access your own donor profile.");
+        }
     }
 
     private FoodDonorResponse toResponse(User donor) {

@@ -18,10 +18,19 @@ public class DatabaseSchemaInitializer implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
+        cleanOrphanFoodWasteItems();
         ensureRejectedColumnExists();
         ensureDispatchedColumnExists();
         ensureAcceptedColumnExists();
         ensureUnifiedDonorSchema();
+    }
+
+    void cleanOrphanFoodWasteItems() {
+        jdbcTemplate.execute(
+                "DELETE FROM food_waste_item " +
+                        "WHERE user_id IS NOT NULL " +
+                        "AND user_id NOT IN (SELECT id FROM users)"
+        );
     }
 
     void ensureRejectedColumnExists() {

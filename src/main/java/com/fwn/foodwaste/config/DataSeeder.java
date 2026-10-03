@@ -15,7 +15,7 @@
 //@Component
 //@RequiredArgsConstructor
 //public class DataSeeder implements CommandLineRunner {
-//
+
 //    private final RoleRepository roleRepo;
 //
 //    @Override

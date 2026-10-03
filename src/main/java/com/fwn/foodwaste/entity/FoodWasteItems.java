@@ -48,4 +48,8 @@ public class FoodWasteItems extends BaseEntity{
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "collection_center_id")
     private CollectionCentres collectionCentre;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "processor_id")
+    private Processors processor;
 }

@@ -3,6 +3,8 @@ package com.fwn.foodwaste.entity;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 import lombok.*;
 
 import java.util.HashSet;
@@ -16,18 +18,22 @@ import java.util.List;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Data
+
 public class User extends BaseEntity{
 
     @NotBlank
+    @Size(min = 3, max = 30,
+            message = "Username must be between 3 and 30 characters")
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Email
+    @NotBlank(message = "Email is required")
+    @Email(message = "Please provide a valid email address")
     @Column(nullable = false, unique = true)
     private String email;
 
-    @NotBlank
+    @NotBlank(message = "Password is required")
+    @Size(min = 8, message = "Password must be at least 8 characters")
     @Column(nullable = false)
     private String password;
 
@@ -40,8 +46,11 @@ public class User extends BaseEntity{
 
     private boolean active = true;
 
+
     private String name;
+
     private String address;
+
     private String phone;
 
     @ManyToMany

@@ -42,4 +42,12 @@ public class Processors extends BaseEntity{
         return maxProcessingCapicityKg - currentLoadKg;
     }
 
+    // Processors.java — ADD after getFreeCapacity()
+
+    @Transient
+    public double getUtilization() {
+        if (maxProcessingCapicityKg <= 0) return 100.0;
+        return (currentLoadKg / maxProcessingCapicityKg) * 100.0;
+    }
+
 }

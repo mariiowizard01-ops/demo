@@ -39,6 +39,7 @@ public class SecurityConfig {
                             .requestMatchers(HttpMethod.GET, "/api/**").hasAnyRole("ADMIN","OPERATOR","DONOR")
                             .requestMatchers(HttpMethod.POST, "/api/food-donors").hasAnyRole("ADMIN","OPERATOR","DONOR")
                             .requestMatchers(HttpMethod.PUT, "/api/food-donors/**").hasAnyRole("ADMIN","OPERATOR","DONOR")
+                            .requestMatchers(HttpMethod.POST, "/api/food-waste-items/auto-assign").hasRole("DONOR")
                             .requestMatchers(HttpMethod.POST, "/api/food-waste-items").hasAnyRole("ADMIN","OPERATOR","DONOR")
                             .requestMatchers(HttpMethod.PUT, "/api/food-waste-items/**").hasAnyRole("ADMIN","OPERATOR","DONOR")
                             .requestMatchers(HttpMethod.PATCH, "/api/food-waste-items/**").hasAnyRole("ADMIN","OPERATOR")

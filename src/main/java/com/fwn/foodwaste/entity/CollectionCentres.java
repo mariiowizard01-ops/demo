@@ -48,4 +48,12 @@ public class CollectionCentres extends BaseEntity{
     public boolean hasCapacity (double weighKg){
         return (currentLoadKg + weighKg) <= maxCapicityKg;
     }
+
+    // CollectionCentres.java — ADD after hasCapacity()
+
+    @Transient
+    public double getUtilization() {
+        if (maxCapicityKg <= 0) return 100.0;
+        return (currentLoadKg / maxCapicityKg) * 100.0;
+    }
 }

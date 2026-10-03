@@ -17,9 +17,13 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import javax.management.Query;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
+import java.util.Comparator;
 import java.util.List;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.stream.Collectors;
 
 @Service
@@ -85,84 +89,143 @@ public class CollectionCenterService {
 
 
 //    END-OF-DAY DISPATCH
+
+
 //    public String dispatchToProcessor(Long centerId) {
+//
 //        CollectionCentres center = getCenter(centerId);
 //
-//        if (center.getProcessor() == null)
-//            throw new ValidationException(
-//                    "No processor assigned to center '"
-//                            + center.getLocation() + "'");
+//        List<FoodWasteItems> approvedItems = itemRepo
+//                .findByCollectionCentre_IdAndAcceptedTrueAndRejectedFalseAndDispatchedFalseOrderByExpirationDateAsc(centerId);
 //
-//        List<FoodWasteItems> pending =
-//                itemRepo.findByCollectionCentre_IdAndProcessedFalse(centerId);
+//        if (approvedItems.isEmpty())
+//            return "No accepted items ready to dispatch at '" + center.getLocation() + "'";
 //
-//        if (pending.isEmpty())
-//            return "No pending items at '" + center.getLocation() + "'";
-//
-//        double totalKg = pending.stream()
+//        int dispatchedCount = 0;
+//        double totalKg = 0.0;
+//        String lastProcessor ="";
+//        double totalKg = approvedItems.stream()
 //                .mapToDouble(FoodWasteItems::getWeightKg).sum();
 //
-//        Processors processor = center.getProcessor();
-//        if (processor.getFreeCapacity() < totalKg)
-//            throw new CapacityExceededException(
-//                    "Processor '" + processor.getName()
-//                            + "' cannot accept " + totalKg + " kg. "
-//                            + "Free: " + processor.getFreeCapacity() + " kg.");
+//        Processors processor = loadBalancer.findBestProcessor(totalKg);
 //
-//        pending.forEach(i -> i.setProcessed(true));
-//        itemRepo.saveAll(pending);
-//        processor.setCurrentLoadKg(processor.getCurrentLoadKg() + totalKg);
+//        approvedItems.forEach(item -> item.setDispatched(true));
+//        itemRepo.saveAll(approvedItems);
+//
+//        processor.setCurrentLoadKg(
+//                processor.getCurrentLoadKg() + totalKg);
 //        processorRepo.save(processor);
+//
 //        center.setCurrentLoadKg(0.0);
 //        centerRepo.save(center);
 //
-//        return "Dispatched " + pending.size() + " items ("
-//                + totalKg + " kg) to '" + processor.getName() + "'";
+//        return "Dispatched " + approvedItems.size()
+//                + " accepted items (" + totalKg + " kg)"
+//                + " to '" + processor.getName() + "'";
 //    }
 
     public String dispatchToProcessor(Long centerId) {
 
         CollectionCentres center = getCenter(centerId);
 
-        List<FoodWasteItems> approvedItems = itemRepo
-                .findByCollectionCentre_IdAndAcceptedTrueAndRejectedFalseAndDispatchedFalse(centerId);
+        // FEFO — fetch accepted items sorted by expiration date ASC
+        // earliest expiring items are dispatched first
+        Queue<FoodWasteItems> queue = new PriorityQueue<>(
+                Comparator.comparing(FoodWasteItems::getExpirationDate)
+                        .thenComparing(FoodWasteItems::getId)
+        );
+        queue.addAll(itemRepo
+                .findByCollectionCentre_IdAndAcceptedTrueAndRejectedFalseAndDispatchedFalseAndProcessedFalseOrderByExpirationDateAscIdAsc(
+                        centerId));
 
-        if (approvedItems.isEmpty())
-            return "No accepted items ready to dispatch at '" + center.getLocation() + "'";
+        if (queue.isEmpty())
+            return "No accepted items ready to dispatch at '"
+                    + center.getLocation() + "'";
 
-        double totalKg = approvedItems.stream()
-                .mapToDouble(FoodWasteItems::getWeightKg).sum();
+        int dispatchedCount = 0;
+        double totalKg      = 0.0;
+        String lastProcessor = "";
 
-        Processors processor = loadBalancer.findBestProcessor(totalKg);
+        // Process each item one by one in FEFO order
+        // Load balancer picks the best processor for EACH item separately
+//        for (FoodWasteItems item : approvedItems) {
 
-        approvedItems.forEach(item -> item.setDispatched(true));
-        itemRepo.saveAll(approvedItems);
+            // Load balancer picks processor with lowest utilization
+            // that can still fit this item's weight
+//            Processors processor =
+//                    loadBalancer.findBestProcessor(item.getWeightKg());
+//
+//            item.setDispatched(true);
+//            item.setProcessor(processor);
+//            itemRepo.save(item);
+//
+//            processor.setCurrentLoadKg(
+//                    processor.getCurrentLoadKg() + item.getWeightKg());
+//            processorRepo.save(processor);
+//
+//            dispatchedCount++;
+//            totalKg      += item.getWeightKg();
+//            lastProcessor = processor.getName();
+        while (!queue.isEmpty()) {
+            FoodWasteItems item = queue.poll(); // FEFO dequeue
 
-        processor.setCurrentLoadKg(
-                processor.getCurrentLoadKg() + totalKg);
-        processorRepo.save(processor);
+            Processors processor = loadBalancer.findBestProcessor(item.getWeightKg());
 
+            item.setDispatched(true);
+            item.setProcessor(processor);
+            itemRepo.save(item);
+
+            processor.setCurrentLoadKg(processor.getCurrentLoadKg() + item.getWeightKg());
+            processorRepo.save(processor);
+
+            dispatchedCount++;
+            totalKg += item.getWeightKg();
+            lastProcessor = processor.getName();
+        }
+
+        // Reset center load after full dispatch
         center.setCurrentLoadKg(0.0);
         centerRepo.save(center);
 
-        return "Dispatched " + approvedItems.size()
-                + " accepted items (" + totalKg + " kg)"
-                + " to '" + processor.getName() + "'";
+        return "Dispatched " + dispatchedCount
+                + " items (" + totalKg + " kg)"
+                + " in FEFO order"
+                + " using load-balanced processor selection.";
     }
 
+    //for single collection center dispatch by fefo
         public String dispatchSingleItem(Long centerId, Long itemId) {
                 CollectionCentres center = getCenter(centerId);
-                FoodWasteItems item = itemRepo.findById(itemId)
-                                .orElseThrow(() -> new ResourceNotFoundException("Food waste item not found: " + itemId));
 
-                if (item.getCollectionCentre() == null
-                                || !item.getCollectionCentre().getId().equals(centerId)
-                                || !item.isAccepted() || item.isRejected() || item.isDispatched()) {
-                        throw new ValidationException("Only accepted, undispatched items from this center can be dispatched.");
-                }
+            Queue<FoodWasteItems> queue = new PriorityQueue<>(
+                    Comparator.comparing(FoodWasteItems::getExpirationDate)
+                            .thenComparing(FoodWasteItems::getId)
+            );
+            queue.addAll(itemRepo
+                            .findByCollectionCentre_IdAndAcceptedTrueAndRejectedFalseAndDispatchedFalseAndProcessedFalseOrderByExpirationDateAscIdAsc(
+                                            centerId));
 
-                Processors processor = loadBalancer.findBestProcessor(item.getWeightKg());
+
+            if (queue.isEmpty()) {
+                return "No accepted items ready to dispatch at this center.";
+            }
+                        FoodWasteItems item = queue.peek();
+                        if (!item.getId().equals(itemId)) {
+                                throw new ValidationException("Dispatch waste in earliest-expiry order. Item "
+                                                                + item.getId() + " expires first.");
+                        }
+                        queue.poll(); // FEFO dequeue
+            Processors processor = loadBalancer.findBestProcessor(item.getWeightKg());
+
+//                if (item.getCollectionCentre() == null
+//                                || !item.getCollectionCentre().getId().equals(centerId)
+//                                || !item.isAccepted() || item.isRejected() || item.isDispatched()) {
+//                        throw new ValidationException("Only accepted, undispatched items from this center can be dispatched.");
+//                }
+
+//                Processors processor = loadBalancer.findBestProcessor(item.getWeightKg());
                 item.setDispatched(true);
+                item.setProcessor(processor);
                 itemRepo.save(item);
                 processor.setCurrentLoadKg(processor.getCurrentLoadKg() + item.getWeightKg());
                 processorRepo.save(processor);
@@ -173,16 +236,21 @@ public class CollectionCenterService {
 
     private void mapFields(CollectionCentres c,
                            CollectionCenterRequest req) {
+        if (req.getProcessorId() != null) {
+            Processors processor = processorRepo.findById(req.getProcessorId())
+                    .orElseThrow(() -> new ResourceNotFoundException(
+                            "Processor not found: " + req.getProcessorId()));
+            if (req.getMaxCapacityKg() > processor.getMaxProcessingCapicityKg()) {
+                throw new ValidationException(
+                        "Collection center capacity cannot exceed its assigned processor capacity ("
+                                + processor.getMaxProcessingCapicityKg() + " kg).");
+            }
+            c.setProcessor(processor);
+        }
+
         c.setName(req.getName());
         c.setLocation(req.getLocation());
         c.setMaxCapicityKg(req.getMaxCapacityKg());
-
-        if (req.getProcessorId() != null) {
-            c.setProcessor(processorRepo.findById(req.getProcessorId())
-                    .orElseThrow(() -> new ResourceNotFoundException(
-                            "Processor not found: "
-                                    + req.getProcessorId())));
-        }
     }
 
     public CollectionCentres getCenter(Long id) {

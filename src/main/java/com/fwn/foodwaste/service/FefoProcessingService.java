@@ -33,14 +33,15 @@ public class FefoProcessingService {
     public List<FoodWasteItemResponse> getFefoQueue() {
 
         List<FoodWasteItems> unprocessed =
-            itemRepo.findByAcceptedTrueAndRejectedFalseAndDispatchedFalseOrderByExpirationDateAsc();
+                itemRepo.findByAcceptedTrueAndRejectedFalseAndDispatchedFalseOrderByExpirationDateAsc();
 
         if (unprocessed.isEmpty())
             return Collections.emptyList();
 
         // Build min-heap on expirationDate
         PriorityQueue<FoodWasteItems> minHeap =
-                new PriorityQueue<>(unprocessed);
+                new PriorityQueue<>(Comparator.comparing(FoodWasteItems::getExpirationDate));
+        minHeap.addAll(unprocessed);
 
         // Drain heap — soonest expiry comes out first
         List<FoodWasteItemResponse> ordered = new ArrayList<>();
@@ -64,7 +65,8 @@ public class FefoProcessingService {
             return Collections.emptyList();
 
         PriorityQueue<FoodWasteItems> minHeap =
-                new PriorityQueue<>(pending);
+                new PriorityQueue<>(Comparator.comparing(FoodWasteItems::getExpirationDate));
+        minHeap.addAll(pending);
 
         List<FoodWasteItemResponse> ordered = new ArrayList<>();
         while (!minHeap.isEmpty()) {

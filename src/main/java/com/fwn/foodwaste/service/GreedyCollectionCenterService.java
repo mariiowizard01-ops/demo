@@ -30,17 +30,20 @@ public class GreedyCollectionCenterService {
      */
     @Transactional(readOnly = true)
     public CollectionCentres findBestCenter(double weightKg) {
+        return findBestCenter(weightKg, centerRepo.findAll());
+    }
 
-        List<CollectionCentres> all = centerRepo.findAll();
-
-        return all.stream()
+    @Transactional(readOnly = true)
+    public CollectionCentres findBestCenter(
+            double weightKg, List<CollectionCentres> candidates) {
+        return candidates.stream()
                 // only centers that physically fit the item
                 .filter(c -> c.hasCapacity(weightKg))
                 // greedy pick — most free space wins
                 .max(Comparator.comparingDouble(
                         c -> c.getMaxCapicityKg() - c.getCurrentLoadKg()))
                 .orElseThrow(() -> new CapacityExceededException(
-                        "No collection center has enough capacity "
+                        "No eligible collection center has enough capacity "
                                 + "to accept " + weightKg + " kg."));
     }
 
